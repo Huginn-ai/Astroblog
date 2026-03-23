@@ -1,0 +1,5 @@
+{
+  "name": "AstroBlog",
+  "description": "An astrology-themed blog with anonymous comments, admin moderation, and customizable styles.",
+  "requestFramePermissions": []
+}
