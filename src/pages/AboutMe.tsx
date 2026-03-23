@@ -12,7 +12,7 @@ export function AboutMe({ settings }: AboutMeProps) {
     <motion.div 
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
-      className="max-w-3xl mx-auto glass p-12 rounded-[3rem]"
+      className="max-w-3xl lg:max-w-5xl mx-auto glass p-12 rounded-[3rem]"
     >
       <h1 className="text-4xl font-serif font-bold mb-8 text-center text-transparent bg-clip-text bg-gradient-to-r from-pink-400 to-purple-400">
         About Me

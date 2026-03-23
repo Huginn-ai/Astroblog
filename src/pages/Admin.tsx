@@ -2,6 +2,7 @@ import React, { useEffect, useState, useRef } from 'react';
 import { api } from '../services/api';
 import { Post, Comment, Settings } from '../types';
 import { motion } from 'motion/react';
+import imageCompression from 'browser-image-compression';
 import { 
   Plus, 
   Trash2, 
@@ -36,6 +37,7 @@ export function Admin({ settings, onSettingsUpdate }: AdminProps) {
   const [selectedImages, setSelectedImages] = useState<FileList | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [compressionStatus, setCompressionStatus] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const [postToDelete, setPostToDelete] = useState<number | null>(null);
@@ -116,9 +118,36 @@ export function Admin({ settings, onSettingsUpdate }: AdminProps) {
     
     if (selectedImages) {
       for (let i = 0; i < selectedImages.length; i++) {
-        formData.append('images', selectedImages[i]);
+        const file = selectedImages[i];
+        
+        // Skip non-image files if any
+        if (!file.type.startsWith('image/')) {
+          formData.append('images', file);
+          continue;
+        }
+
+        try {
+          // Compress image if it's larger than 1MB
+          if (file.size > 1024 * 1024) {
+            setCompressionStatus(`Optimizing image ${i + 1} of ${selectedImages.length}...`);
+            const options = {
+              maxSizeMB: 1,
+              maxWidthOrHeight: 1920,
+              useWebWorker: true
+            };
+            const compressedFile = await imageCompression(file, options);
+            formData.append('images', compressedFile, file.name);
+          } else {
+            formData.append('images', file);
+          }
+        } catch (error) {
+          console.error('Compression error:', error);
+          formData.append('images', file); // Fallback to original
+        }
       }
     }
+    setCompressionStatus(null);
+
 
     try {
       if (editingPost) {
@@ -340,8 +369,8 @@ export function Admin({ settings, onSettingsUpdate }: AdminProps) {
       )}
 
       {activeTab === 'new-post' && (
-        <div className="max-w-3xl mx-auto">
-          <form onSubmit={handleCreatePost} className="glass p-8 rounded-3xl space-y-6">
+        <div className="max-w-3xl lg:max-w-6xl mx-auto">
+          <form onSubmit={handleCreatePost} className="glass p-8 lg:p-12 rounded-3xl space-y-6">
             <h2 className="text-2xl font-serif font-bold flex items-center gap-2">
               {editingPost ? <FileText className="text-pink-500" /> : <Plus className="text-pink-500" />}
               {editingPost ? 'Edit Post' : 'New Post'}
@@ -448,9 +477,15 @@ export function Admin({ settings, onSettingsUpdate }: AdminProps) {
               <button 
                 type="submit" 
                 disabled={isSubmitting}
-                className="flex-1 astro-gradient py-4 rounded-xl font-bold flex items-center justify-center gap-2 hover:scale-[1.02] transition-transform disabled:opacity-50"
+                className="flex-1 astro-gradient py-4 rounded-xl font-bold flex flex-col items-center justify-center gap-1 hover:scale-[1.02] transition-transform disabled:opacity-50"
               >
-                {isSubmitting ? 'Saving...' : editingPost ? 'Update Celestial Insight' : 'Publish Celestial Insight'}
+                <div className="flex items-center gap-2">
+                  {isSubmitting && <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />}
+                  <span>{isSubmitting ? 'Saving...' : editingPost ? 'Update Celestial Insight' : 'Publish Celestial Insight'}</span>
+                </div>
+                {compressionStatus && (
+                  <span className="text-xs text-white/70 italic font-normal">{compressionStatus}</span>
+                )}
               </button>
               {editingPost && (
                 <button 
@@ -473,7 +508,7 @@ export function Admin({ settings, onSettingsUpdate }: AdminProps) {
       {activeTab === 'manage-posts' && (
         <section className="space-y-6">
           <h2 className="text-2xl font-serif font-bold">Manage Posts</h2>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             {Array.isArray(posts) && posts.map(post => (
               <div key={post.id} className="glass p-6 rounded-2xl flex items-center justify-between gap-4 group">
                 <div className="flex items-center gap-4 flex-1 cursor-pointer" onClick={() => handleEditClick(post)}>
@@ -566,7 +601,7 @@ export function Admin({ settings, onSettingsUpdate }: AdminProps) {
       )}
 
       {activeTab === 'settings' && (
-        <section className="max-w-2xl mx-auto">
+        <section className="max-w-2xl lg:max-w-5xl mx-auto">
           <form onSubmit={handleSettingsUpdate} className="glass p-12 rounded-[3rem] space-y-10">
             <h2 className="text-3xl font-serif font-bold text-center">Site Customization</h2>
             
@@ -621,7 +656,7 @@ export function Admin({ settings, onSettingsUpdate }: AdminProps) {
       )}
 
       {activeTab === 'menu-link' && (
-        <section className="max-w-2xl mx-auto">
+        <section className="max-w-2xl lg:max-w-5xl mx-auto">
           <form onSubmit={handleSettingsUpdate} className="glass p-12 rounded-[3rem] space-y-10">
             <h2 className="text-3xl font-serif font-bold text-center">Menu Link Configuration</h2>
             
@@ -651,7 +686,7 @@ export function Admin({ settings, onSettingsUpdate }: AdminProps) {
       )}
 
       {activeTab === 'about-me' && (
-        <section className="max-w-3xl mx-auto">
+        <section className="max-w-3xl lg:max-w-6xl mx-auto">
           <form onSubmit={handleSettingsUpdate} className="glass p-12 rounded-[3rem] space-y-10">
             <h2 className="text-3xl font-serif font-bold text-center">About Me Configuration</h2>
             

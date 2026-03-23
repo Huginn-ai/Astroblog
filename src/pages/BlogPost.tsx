@@ -71,7 +71,7 @@ export function BlogPost() {
   if (!post) return <div className="text-center py-24">Post not found.</div>;
 
   return (
-    <div className="max-w-4xl mx-auto space-y-12">
+    <div className="max-w-4xl lg:max-w-5xl mx-auto space-y-12">
       <Link to="/" className="inline-flex items-center gap-2 text-slate-400 hover:text-pink-400 transition-colors">
         <ArrowLeft size={16} /> Back to Home
       </Link>
