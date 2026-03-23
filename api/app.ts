@@ -87,7 +87,7 @@ export async function createApp() {
   
   const app = express();
 
-  app.set('trust proxy', 1);
+  app.set('trust proxy', true);
   
   app.use(cookieSession({
     name: 'astro_session',
@@ -96,6 +96,9 @@ export async function createApp() {
     secure: true,
     sameSite: 'none',
     httpOnly: true,
+    proxy: true,
+    // @ts-ignore - partitioned is a newer attribute for iframe cookies
+    partitioned: true
   } as any));
 
   app.use(cors({
@@ -134,6 +137,10 @@ export async function createApp() {
   app.post('/api/admin/login', (req: any, res) => {
     const { password } = req.body;
     const adminPassword = process.env.ADMIN_PASSWORD || 'AstroRao2026';
+    console.log('Login attempt:', {
+      provided: !!password,
+      match: password?.trim() === adminPassword?.trim()
+    });
     if (password?.trim() === adminPassword?.trim()) {
       req.session.isAdmin = true;
       res.json({ success: true });
@@ -181,7 +188,7 @@ export async function createApp() {
     res.json({ ...post, images: JSON.parse(post.images || '[]') });
   });
 
-  app.post('/api/posts', isAdmin, upload.array('images'), async (req: any, res) => {
+  app.post('/api/posts', upload.array('images'), isAdmin, async (req: any, res) => {
     const { title, content, excerpt } = req.body;
     const files = req.files as any[];
     
@@ -200,7 +207,7 @@ export async function createApp() {
     res.json({ id: Number(result.lastInsertRowid) });
   });
 
-  app.patch('/api/posts/:id', isAdmin, upload.array('images'), async (req: any, res) => {
+  app.patch('/api/posts/:id', upload.array('images'), isAdmin, async (req: any, res) => {
     const { title, content, excerpt, existingImages } = req.body;
     const files = req.files as any[];
     

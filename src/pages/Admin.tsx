@@ -397,7 +397,10 @@ export function Admin({ settings, onSettingsUpdate }: AdminProps) {
                     ref={fileInputRef}
                     multiple 
                     accept="image/*"
-                    onChange={e => setSelectedImages(e.target.files)}
+                    onChange={e => {
+                      setSelectedImages(e.target.files);
+                      setError(null);
+                    }}
                     className="hidden" 
                   />
                 </div>
