@@ -180,7 +180,7 @@ export async function createApp() {
     const imageUrls = [];
     for (const file of files) {
       const blob = await put(`posts/${Date.now()}-${file.originalname}`, file.buffer, {
-        access: 'public',
+        access: 'private',
       });
       imageUrls.push(blob.url);
     }
@@ -199,7 +199,7 @@ export async function createApp() {
     const newImageUrls = [];
     for (const file of files) {
       const blob = await put(`posts/${Date.now()}-${file.originalname}`, file.buffer, {
-        access: 'public',
+        access: 'private',
       });
       newImageUrls.push(blob.url);
     }
