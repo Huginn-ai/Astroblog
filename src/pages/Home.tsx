@@ -56,6 +56,9 @@ export function Home() {
                 alt={post.title}
                 className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
                 referrerPolicy="no-referrer"
+                onError={(e) => {
+                  (e.target as HTMLImageElement).src = 'https://picsum.photos/seed/astro/800/600';
+                }}
               />
             </Link>
             

@@ -192,10 +192,15 @@ export async function createApp() {
     const { title, content, excerpt } = req.body;
     const files = req.files as any[];
     
+    if (!process.env.BLOB_READ_WRITE_TOKEN) {
+      console.error('BLOB_READ_WRITE_TOKEN is not set');
+      return res.status(500).json({ error: 'Vercel Blob is not configured. Please set BLOB_READ_WRITE_TOKEN.' });
+    }
+
     const imageUrls = [];
     for (const file of files) {
       const blob = await put(`posts/${Date.now()}-${file.originalname}`, file.buffer, {
-        access: 'private',
+        access: 'public',
       });
       imageUrls.push(blob.url);
     }
@@ -211,10 +216,15 @@ export async function createApp() {
     const { title, content, excerpt, existingImages } = req.body;
     const files = req.files as any[];
     
+    if (files.length > 0 && !process.env.BLOB_READ_WRITE_TOKEN) {
+      console.error('BLOB_READ_WRITE_TOKEN is not set');
+      return res.status(500).json({ error: 'Vercel Blob is not configured. Please set BLOB_READ_WRITE_TOKEN.' });
+    }
+
     const newImageUrls = [];
     for (const file of files) {
       const blob = await put(`posts/${Date.now()}-${file.originalname}`, file.buffer, {
-        access: 'private',
+        access: 'public',
       });
       newImageUrls.push(blob.url);
     }

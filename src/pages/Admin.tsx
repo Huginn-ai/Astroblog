@@ -120,9 +120,8 @@ export function Admin({ settings, onSettingsUpdate }: AdminProps) {
       for (let i = 0; i < selectedImages.length; i++) {
         const file = selectedImages[i];
         
-        // Skip non-image files if any
+        // Skip non-image files
         if (!file.type.startsWith('image/')) {
-          formData.append('images', file);
           continue;
         }
 
@@ -433,6 +432,24 @@ export function Admin({ settings, onSettingsUpdate }: AdminProps) {
                     className="hidden" 
                   />
                 </div>
+
+                {selectedImages && selectedImages.length > 0 && (
+                  <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4 mt-4">
+                    {Array.from(selectedImages).map((file, i) => (
+                      <div key={i} className="relative aspect-square rounded-xl overflow-hidden border border-white/10 bg-white/5">
+                        <img 
+                          src={URL.createObjectURL(file)} 
+                          className="w-full h-full object-cover" 
+                          onLoad={(e) => URL.revokeObjectURL((e.target as HTMLImageElement).src)}
+                        />
+                        <div className="absolute top-2 right-2 px-2 py-1 bg-black/60 rounded text-[10px] text-white font-bold uppercase tracking-wider">
+                          New
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
                 {editingPost && editingPost.images.length > 0 && (
                   <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4 mt-4">
                     {editingPost.images.map((img, i) => (
@@ -516,6 +533,9 @@ export function Admin({ settings, onSettingsUpdate }: AdminProps) {
                     src={post.images[0] || 'https://picsum.photos/seed/astro/100/100'} 
                     className="w-16 h-16 object-cover rounded-xl"
                     referrerPolicy="no-referrer"
+                    onError={(e) => {
+                      (e.target as HTMLImageElement).src = 'https://picsum.photos/seed/astro/100/100';
+                    }}
                   />
                   <div>
                     <h3 className="font-serif font-bold text-lg group-hover:text-pink-400 transition-colors">{post.title}</h3>

@@ -109,6 +109,9 @@ export function BlogPost() {
               alt={post.title}
               className="w-full rounded-3xl shadow-2xl"
               referrerPolicy="no-referrer"
+              onError={(e) => {
+                (e.target as HTMLImageElement).src = 'https://picsum.photos/seed/astro/1200/800';
+              }}
             />
             {post.images.slice(1).length > 0 && (
               <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
@@ -119,6 +122,9 @@ export function BlogPost() {
                     alt={`${post.title} ${i + 2}`}
                     className="w-full aspect-square object-cover rounded-2xl"
                     referrerPolicy="no-referrer"
+                    onError={(e) => {
+                      (e.target as HTMLImageElement).src = `https://picsum.photos/seed/astro-${i}/400/400`;
+                    }}
                   />
                 ))}
               </div>
