@@ -80,7 +80,13 @@ async function initDb() {
 
 // Multer in-memory storage for Vercel Blob
 const storage = multer.memoryStorage();
-const upload = multer({ storage });
+const upload = multer({ 
+  storage,
+  limits: {
+    fileSize: 10 * 1024 * 1024, // 10MB limit per file
+    fieldSize: 5 * 1024 * 1024, // 5MB limit for text fields
+  }
+});
 
 export async function createApp() {
   await initDb();
@@ -189,53 +195,91 @@ export async function createApp() {
   });
 
   app.post('/api/posts', upload.array('images'), isAdmin, async (req: any, res) => {
-    const { title, content, excerpt } = req.body;
-    const files = req.files as any[];
-    
-    if (!process.env.BLOB_READ_WRITE_TOKEN) {
-      console.error('BLOB_READ_WRITE_TOKEN is not set');
-      return res.status(500).json({ error: 'Vercel Blob is not configured. Please set BLOB_READ_WRITE_TOKEN.' });
-    }
+    try {
+      const { title, content, excerpt } = req.body;
+      const files = req.files as any[] || [];
+      
+      console.log(`Creating post: ${title}, files count: ${files.length}`);
 
-    const imageUrls = [];
-    for (const file of files) {
-      const blob = await put(`posts/${Date.now()}-${file.originalname}`, file.buffer, {
-        access: 'public',
+      if (files.length > 0 && !process.env.BLOB_READ_WRITE_TOKEN) {
+        console.error('BLOB_READ_WRITE_TOKEN is not set');
+        return res.status(500).json({ error: 'Vercel Blob is not configured. Please set BLOB_READ_WRITE_TOKEN.' });
+      }
+
+      const imageUrls = [];
+      for (const file of files) {
+        console.log(`Uploading file to Vercel Blob: ${file.originalname} (${file.size} bytes)`);
+        
+        // Add a timeout to the put call
+        const uploadPromise = put(`posts/${Date.now()}-${file.originalname}`, file.buffer, {
+          access: 'public',
+        });
+        
+        const timeoutPromise = new Promise((_, reject) => 
+          setTimeout(() => reject(new Error('Vercel Blob upload timed out')), 45000)
+        );
+
+        const blob = await Promise.race([uploadPromise, timeoutPromise]) as any;
+        console.log(`Uploaded: ${blob.url}`);
+        imageUrls.push(blob.url);
+      }
+
+      console.log('Inserting post into database...');
+      const result = await db.execute({
+        sql: 'INSERT INTO posts (title, content, excerpt, images) VALUES (?, ?, ?, ?)',
+        args: [title, content, excerpt, JSON.stringify(imageUrls)]
       });
-      imageUrls.push(blob.url);
+      console.log('Post created successfully');
+      res.json({ id: Number(result.lastInsertRowid) });
+    } catch (error: any) {
+      console.error('Error creating post:', error);
+      res.status(500).json({ error: error.message || 'Internal server error' });
     }
-
-    const result = await db.execute({
-      sql: 'INSERT INTO posts (title, content, excerpt, images) VALUES (?, ?, ?, ?)',
-      args: [title, content, excerpt, JSON.stringify(imageUrls)]
-    });
-    res.json({ id: Number(result.lastInsertRowid) });
   });
 
   app.patch('/api/posts/:id', upload.array('images'), isAdmin, async (req: any, res) => {
-    const { title, content, excerpt, existingImages } = req.body;
-    const files = req.files as any[];
-    
-    if (files.length > 0 && !process.env.BLOB_READ_WRITE_TOKEN) {
-      console.error('BLOB_READ_WRITE_TOKEN is not set');
-      return res.status(500).json({ error: 'Vercel Blob is not configured. Please set BLOB_READ_WRITE_TOKEN.' });
-    }
+    try {
+      const { title, content, excerpt, existingImages } = req.body;
+      const files = req.files as any[] || [];
+      
+      console.log(`Updating post ${req.params.id}: ${title}, new files count: ${files.length}`);
 
-    const newImageUrls = [];
-    for (const file of files) {
-      const blob = await put(`posts/${Date.now()}-${file.originalname}`, file.buffer, {
-        access: 'public',
+      if (files.length > 0 && !process.env.BLOB_READ_WRITE_TOKEN) {
+        console.error('BLOB_READ_WRITE_TOKEN is not set');
+        return res.status(500).json({ error: 'Vercel Blob is not configured. Please set BLOB_READ_WRITE_TOKEN.' });
+      }
+
+      const newImageUrls = [];
+      for (const file of files) {
+        console.log(`Uploading file to Vercel Blob: ${file.originalname} (${file.size} bytes)`);
+        
+        // Add a timeout to the put call
+        const uploadPromise = put(`posts/${Date.now()}-${file.originalname}`, file.buffer, {
+          access: 'public',
+        });
+        
+        const timeoutPromise = new Promise((_, reject) => 
+          setTimeout(() => reject(new Error('Vercel Blob upload timed out')), 45000)
+        );
+
+        const blob = await Promise.race([uploadPromise, timeoutPromise]) as any;
+        console.log(`Uploaded: ${blob.url}`);
+        newImageUrls.push(blob.url);
+      }
+
+      const images = [...JSON.parse(existingImages || '[]'), ...newImageUrls];
+      
+      console.log('Updating database...');
+      await db.execute({
+        sql: 'UPDATE posts SET title = ?, content = ?, excerpt = ?, images = ? WHERE id = ?',
+        args: [title, content, excerpt, JSON.stringify(images), req.params.id]
       });
-      newImageUrls.push(blob.url);
+      console.log('Post updated successfully');
+      res.json({ success: true });
+    } catch (error: any) {
+      console.error('Error updating post:', error);
+      res.status(500).json({ error: error.message || 'Internal server error' });
     }
-
-    const images = [...JSON.parse(existingImages || '[]'), ...newImageUrls];
-    
-    await db.execute({
-      sql: 'UPDATE posts SET title = ?, content = ?, excerpt = ?, images = ? WHERE id = ?',
-      args: [title, content, excerpt, JSON.stringify(images), req.params.id]
-    });
-    res.json({ success: true });
   });
 
   app.delete('/api/posts/:id', isAdmin, async (req, res) => {

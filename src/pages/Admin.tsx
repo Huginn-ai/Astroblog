@@ -53,6 +53,12 @@ export function Admin({ settings, onSettingsUpdate }: AdminProps) {
   }, [isAdmin]);
 
   const [debugInfo, setDebugInfo] = useState<any>(null);
+  const [logs, setLogs] = useState<string[]>([]);
+
+  const addLog = (msg: string) => {
+    console.log(msg);
+    setLogs(prev => [...prev.slice(-19), `${new Date().toLocaleTimeString()}: ${msg}`]);
+  };
 
   const checkDebug = async () => {
     try {
@@ -116,45 +122,52 @@ export function Admin({ settings, onSettingsUpdate }: AdminProps) {
       formData.append('existingImages', JSON.stringify(editingPost.images));
     }
     
-    if (selectedImages) {
-      for (let i = 0; i < selectedImages.length; i++) {
-        const file = selectedImages[i];
-        
-        // Skip non-image files
-        if (!file.type.startsWith('image/')) {
-          continue;
-        }
-
-        try {
-          // Compress image if it's larger than 1MB
-          if (file.size > 1024 * 1024) {
-            setCompressionStatus(`Optimizing image ${i + 1} of ${selectedImages.length}...`);
-            const options = {
-              maxSizeMB: 1,
-              maxWidthOrHeight: 1920,
-              useWebWorker: true
-            };
-            const compressedFile = await imageCompression(file, options);
-            formData.append('images', compressedFile, file.name);
-          } else {
-            formData.append('images', file);
+    try {
+      if (selectedImages) {
+        for (let i = 0; i < selectedImages.length; i++) {
+          const file = selectedImages[i];
+          
+          // Skip non-image files
+          if (!file.type.startsWith('image/')) {
+            continue;
           }
-        } catch (error) {
-          console.error('Compression error:', error);
-          formData.append('images', file); // Fallback to original
+
+          try {
+            // Compress image if it's larger than 1MB
+            if (file.size > 1024 * 1024) {
+              addLog(`Compressing image ${i + 1}: ${file.name} (${(file.size / 1024 / 1024).toFixed(2)} MB)`);
+              setCompressionStatus(`Optimizing image ${i + 1} of ${selectedImages.length}...`);
+              const options = {
+                maxSizeMB: 1,
+                maxWidthOrHeight: 1920,
+                useWebWorker: true,
+                onProgress: (progress: number) => {
+                  setCompressionStatus(`Optimizing image ${i + 1} of ${selectedImages.length}: ${progress}%`);
+                }
+              };
+              const compressedFile = await imageCompression(file, options);
+              addLog(`Compressed ${file.name} to ${(compressedFile.size / 1024 / 1024).toFixed(2)} MB`);
+              formData.append('images', compressedFile, file.name);
+            } else {
+              addLog(`Adding original image: ${file.name} (${(file.size / 1024 / 1024).toFixed(2)} MB)`);
+              formData.append('images', file);
+            }
+          } catch (error) {
+            addLog(`Compression error for ${file.name}: ${error}`);
+            formData.append('images', file); // Fallback to original
+          }
         }
       }
-    }
-    setCompressionStatus(null);
-
-
-    try {
+      setCompressionStatus('Uploading to celestial storage...');
+      addLog('Sending request to server...');
+      
       if (editingPost) {
         await api.updatePost(editingPost.id, formData);
       } else {
         await api.createPost(formData);
       }
       
+      addLog('Post saved successfully');
       setNewPost({ title: '', content: '', excerpt: '' });
       setSelectedImages(null);
       setEditingPost(null);
@@ -162,9 +175,11 @@ export function Admin({ settings, onSettingsUpdate }: AdminProps) {
       refreshData();
       setActiveTab('manage-posts');
     } catch (err: any) {
-      setError(err.message || 'Failed to save post');
+      addLog(`Save error: ${err.message}`);
+      setError(err.message || 'Failed to save post. The cosmic connection might be weak.');
     } finally {
       setIsSubmitting(false);
+      setCompressionStatus(null);
     }
   };
 
@@ -252,6 +267,14 @@ export function Admin({ settings, onSettingsUpdate }: AdminProps) {
               <pre className="mt-4 p-4 bg-slate-900/50 rounded-xl text-[10px] text-slate-400 overflow-auto max-h-40 text-left">
                 {JSON.stringify(debugInfo, null, 2)}
               </pre>
+            )}
+            {logs.length > 0 && (
+              <div className="mt-4 p-4 bg-slate-900/50 rounded-xl text-[10px] text-slate-400 overflow-auto max-h-40 text-left">
+                <p className="font-bold mb-2 uppercase tracking-widest text-slate-500">Celestial Logs</p>
+                {logs.map((log, i) => (
+                  <div key={i} className="mb-1">{log}</div>
+                ))}
+              </div>
             )}
           </div>
 

@@ -40,26 +40,52 @@ export const api = {
     return res.json();
   },
   createPost: async (formData: FormData): Promise<{ id: number }> => {
-    const res = await fetch(`${API_BASE}/posts`, {
-      method: 'POST',
-      body: formData,
-      credentials: 'include',
-    });
-    if (!res.ok) {
-      const error = await res.json().catch(() => ({ error: 'Unauthorized' }));
-      throw new Error(error.error || 'Failed to create post');
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 60000); // 60s timeout for uploads
+    
+    try {
+      const res = await fetch(`${API_BASE}/posts`, {
+        method: 'POST',
+        body: formData,
+        credentials: 'include',
+        signal: controller.signal,
+      });
+      clearTimeout(timeoutId);
+      if (!res.ok) {
+        const error = await res.json().catch(() => ({ error: 'Unauthorized' }));
+        throw new Error(error.error || 'Failed to create post');
+      }
+      return res.json();
+    } catch (err: any) {
+      clearTimeout(timeoutId);
+      if (err.name === 'AbortError') {
+        throw new Error('Upload timed out. The celestial connection is too slow.');
+      }
+      throw err;
     }
-    return res.json();
   },
   updatePost: async (id: number | string, formData: FormData): Promise<void> => {
-    const res = await fetch(`${API_BASE}/posts/${id}`, {
-      method: 'PATCH',
-      body: formData,
-      credentials: 'include',
-    });
-    if (!res.ok) {
-      const error = await res.json().catch(() => ({ error: 'Unauthorized' }));
-      throw new Error(error.error || 'Failed to update post');
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 60000); // 60s timeout for uploads
+    
+    try {
+      const res = await fetch(`${API_BASE}/posts/${id}`, {
+        method: 'PATCH',
+        body: formData,
+        credentials: 'include',
+        signal: controller.signal,
+      });
+      clearTimeout(timeoutId);
+      if (!res.ok) {
+        const error = await res.json().catch(() => ({ error: 'Unauthorized' }));
+        throw new Error(error.error || 'Failed to update post');
+      }
+    } catch (err: any) {
+      clearTimeout(timeoutId);
+      if (err.name === 'AbortError') {
+        throw new Error('Upload timed out. The celestial connection is too slow.');
+      }
+      throw err;
     }
   },
   deletePost: async (id: number | string): Promise<void> => {
