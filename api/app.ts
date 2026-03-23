@@ -87,21 +87,7 @@ export async function createApp() {
   
   const app = express();
 
-  app.set('trust proxy', true);
-  
-  app.use((req, res, next) => {
-    if (req.headers['x-forwarded-proto'] === 'http') {
-      req.headers['x-forwarded-proto'] = 'https';
-    }
-    next();
-  });
-
-  app.use(cors({
-    origin: true,
-    credentials: true
-  }));
-
-  app.use(express.json());
+  app.set('trust proxy', 1);
   
   app.use(cookieSession({
     name: 'astro_session',
@@ -110,14 +96,36 @@ export async function createApp() {
     secure: true,
     sameSite: 'none',
     httpOnly: true,
-    overwrite: true,
-    proxy: true
   } as any));
+
+  app.use(cors({
+    origin: (origin, callback) => {
+      // Allow all origins for now to fix iframe issues
+      callback(null, true);
+    },
+    credentials: true
+  }));
+
+  app.use(express.json());
+
+  app.get('/api/admin/debug', (req: any, res) => {
+    res.json({
+      session: req.session,
+      cookies: req.headers.cookie,
+      headers: req.headers,
+      env: process.env.NODE_ENV,
+      hasSecret: !!process.env.ADMIN_PASSWORD
+    });
+  });
 
   const isAdmin = (req: any, res: any, next: any) => {
     if (req.session && req.session.isAdmin) {
       next();
     } else {
+      console.log('Unauthorized access attempt:', {
+        session: req.session,
+        cookies: req.headers.cookie
+      });
       res.status(401).json({ error: 'Unauthorized' });
     }
   };
