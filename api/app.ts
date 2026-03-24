@@ -233,7 +233,11 @@ export async function createApp() {
       res.json({ id: Number(result.lastInsertRowid) });
     } catch (error: any) {
       console.error('Error creating post:', error);
-      res.status(500).json({ error: error.message || 'Internal server error' });
+      let errorMessage = error.message || 'Internal server error';
+      if (errorMessage.includes('This store does not exist')) {
+        errorMessage = 'Vercel Blob Store not found. Please check your BLOB_READ_WRITE_TOKEN in the Settings menu and ensure your Vercel Blob store is active.';
+      }
+      res.status(500).json({ error: errorMessage });
     }
   });
 
@@ -278,7 +282,11 @@ export async function createApp() {
       res.json({ success: true });
     } catch (error: any) {
       console.error('Error updating post:', error);
-      res.status(500).json({ error: error.message || 'Internal server error' });
+      let errorMessage = error.message || 'Internal server error';
+      if (errorMessage.includes('This store does not exist')) {
+        errorMessage = 'Vercel Blob Store not found. Please check your BLOB_READ_WRITE_TOKEN in the Settings menu and ensure your Vercel Blob store is active.';
+      }
+      res.status(500).json({ error: errorMessage });
     }
   });
 
