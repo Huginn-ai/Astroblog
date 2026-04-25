@@ -12,6 +12,7 @@ export interface Post {
   content: string;
   excerpt: string;
   images: string[];
+  youtubeLinks?: string[];
   createdAt: string;
 }
 

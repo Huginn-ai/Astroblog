@@ -132,6 +132,32 @@ export function BlogPost() {
           </div>
         )}
 
+        {post.youtubeLinks && post.youtubeLinks.length > 0 && (
+          <div className="grid grid-cols-1 gap-8">
+            {post.youtubeLinks.map((url, i) => {
+              const regExp = /^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|&v=)([^#&?]*).*/;
+              const match = url.match(regExp);
+              const videoId = (match && match[2].length === 11) ? match[2] : null;
+              
+              if (!videoId) return null;
+
+              return (
+                <div key={i} className="aspect-video w-full rounded-3xl overflow-hidden shadow-2xl border border-white/10 bg-black/20">
+                  <iframe
+                    width="100%"
+                    height="100%"
+                    src={`https://www.youtube.com/embed/${videoId}`}
+                    title={`YouTube video player ${i}`}
+                    frameBorder="0"
+                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                    allowFullScreen
+                  ></iframe>
+                </div>
+              );
+            })}
+          </div>
+        )}
+
         <div className="markdown-body">
           <ReactMarkdown>{post.content}</ReactMarkdown>
         </div>

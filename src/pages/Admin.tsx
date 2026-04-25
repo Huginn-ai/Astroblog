@@ -33,6 +33,8 @@ export function Admin({ settings, onSettingsUpdate }: AdminProps) {
   const [posts, setPosts] = useState<Post[]>([]);
   const [adminComments, setAdminComments] = useState<Comment[]>([]);
   const [newPost, setNewPost] = useState({ title: '', content: '', excerpt: '' });
+  const [youtubeLinks, setYoutubeLinks] = useState<string[]>([]);
+  const [youtubeUrlInput, setYoutubeUrlInput] = useState('');
   const [editingPost, setEditingPost] = useState<Post | null>(null);
   const [selectedImages, setSelectedImages] = useState<FileList | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -117,6 +119,7 @@ export function Admin({ settings, onSettingsUpdate }: AdminProps) {
     formData.append('title', newPost.title);
     formData.append('content', newPost.content);
     formData.append('excerpt', newPost.excerpt);
+    formData.append('youtubeLinks', JSON.stringify(youtubeLinks));
     
     if (editingPost) {
       formData.append('existingImages', JSON.stringify(editingPost.images));
@@ -169,6 +172,8 @@ export function Admin({ settings, onSettingsUpdate }: AdminProps) {
       
       addLog('Post saved successfully');
       setNewPost({ title: '', content: '', excerpt: '' });
+      setYoutubeLinks([]);
+      setYoutubeUrlInput('');
       setSelectedImages(null);
       setEditingPost(null);
       if (fileInputRef.current) fileInputRef.current.value = '';
@@ -190,6 +195,7 @@ export function Admin({ settings, onSettingsUpdate }: AdminProps) {
       content: post.content,
       excerpt: post.excerpt
     });
+    setYoutubeLinks(post.youtubeLinks || []);
     setActiveTab('new-post');
   };
 
@@ -238,6 +244,43 @@ export function Admin({ settings, onSettingsUpdate }: AdminProps) {
     e.preventDefault();
     await api.updateSettings(settings);
     alert('Settings updated successfully!');
+  };
+
+  const moveYoutubeLink = (index: number, direction: 'up' | 'down') => {
+    const newLinks = [...youtubeLinks];
+    const newIndex = direction === 'up' ? index - 1 : index + 1;
+    if (newIndex < 0 || newIndex >= newLinks.length) return;
+    
+    [newLinks[index], newLinks[newIndex]] = [newLinks[newIndex], newLinks[index]];
+    setYoutubeLinks(newLinks);
+  };
+
+  const getYoutubeId = (url: string) => {
+    const regExp = /^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|&v=)([^#&?]*).*/;
+    const match = url.match(regExp);
+    return (match && match[2].length === 11) ? match[2] : null;
+  };
+
+  const handleAddYoutubeLink = () => {
+    const videoId = getYoutubeId(youtubeUrlInput);
+    if (!videoId) {
+      setError('Invalid YouTube URL. Please provide a valid celestial transmission link.');
+      return;
+    }
+    
+    if (youtubeLinks.includes(youtubeUrlInput)) {
+      setError('This celestial video is already linked.');
+      return;
+    }
+
+    setYoutubeLinks([...youtubeLinks, youtubeUrlInput]);
+    setYoutubeUrlInput('');
+    setError(null);
+    addLog(`Added YouTube reference: ${videoId}`);
+  };
+
+  const removeYoutubeLink = (index: number) => {
+    setYoutubeLinks(youtubeLinks.filter((_, i) => i !== index));
   };
 
   if (isAdmin === null) return null;
@@ -511,6 +554,73 @@ export function Admin({ settings, onSettingsUpdate }: AdminProps) {
                   </div>
                 )}
               </div>
+
+              <div className="space-y-2">
+                <label className="text-xs text-slate-400 uppercase tracking-widest">YouTube References</label>
+                <div className="flex gap-2">
+                  <input 
+                    type="text" 
+                    value={youtubeUrlInput}
+                    onChange={e => setYoutubeUrlInput(e.target.value)}
+                    placeholder="Paste YouTube Link"
+                    className="flex-1 bg-white/5 border border-white/10 rounded-xl px-4 py-3 focus:outline-none focus:border-pink-500"
+                  />
+                  <button 
+                    type="button"
+                    onClick={handleAddYoutubeLink}
+                    className="px-6 bg-pink-500/20 text-pink-400 border border-pink-500/30 rounded-xl hover:bg-pink-500/30 transition-colors font-bold"
+                  >
+                    Add
+                  </button>
+                </div>
+
+                {youtubeLinks.length > 0 && (
+                  <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4 mt-4">
+                    {youtubeLinks.map((url, i) => {
+                      const videoId = getYoutubeId(url);
+                      return (
+                        <div key={i} className="relative group aspect-video rounded-xl overflow-hidden border border-white/10 bg-white/5">
+                          <img 
+                            src={`https://img.youtube.com/vi/${videoId}/mqdefault.jpg`} 
+                            className="w-full h-full object-cover" 
+                          />
+                          <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
+                            <button
+                              type="button"
+                              onClick={() => moveYoutubeLink(i, 'up')}
+                              disabled={i === 0}
+                              className="p-1.5 bg-white/10 rounded-lg hover:bg-white/20 disabled:opacity-30"
+                              title="Move Up"
+                            >
+                              <ArrowUp size={16} />
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => moveYoutubeLink(i, 'down')}
+                              disabled={i === youtubeLinks.length - 1}
+                              className="p-1.5 bg-white/10 rounded-lg hover:bg-white/20 disabled:opacity-30"
+                              title="Move Down"
+                            >
+                              <ArrowDown size={16} />
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => removeYoutubeLink(i)}
+                              className="p-1.5 bg-rose-500/20 text-rose-400 rounded-lg hover:bg-rose-500/30"
+                              title="Remove Reference"
+                            >
+                              <Trash2 size={16} />
+                            </button>
+                          </div>
+                          <div className="absolute top-2 right-2 px-2 py-1 bg-red-600 rounded text-[10px] text-white font-bold uppercase tracking-wider">
+                            YouTube
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
             </div>
 
             <div className="flex gap-4 pt-4">
@@ -550,28 +660,50 @@ export function Admin({ settings, onSettingsUpdate }: AdminProps) {
           <h2 className="text-2xl font-serif font-bold">Manage Posts</h2>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             {Array.isArray(posts) && posts.map(post => (
-              <div key={post.id} className="glass p-6 rounded-2xl flex items-center justify-between gap-4 group">
+              <div key={post.id} className="glass p-6 rounded-2xl flex items-center justify-between gap-4 group relative overflow-hidden">
                 <div className="flex items-center gap-4 flex-1 cursor-pointer" onClick={() => handleEditClick(post)}>
-                  <img 
-                    src={post.images[0] || 'https://picsum.photos/seed/astro/100/100'} 
-                    className="w-16 h-16 object-cover rounded-xl"
-                    referrerPolicy="no-referrer"
-                    onError={(e) => {
-                      (e.target as HTMLImageElement).src = 'https://picsum.photos/seed/astro/100/100';
-                    }}
-                  />
+                  <div className="relative">
+                    <img 
+                      src={post.images[0] || (post.youtubeLinks && post.youtubeLinks.length > 0 ? `https://img.youtube.com/vi/${getYoutubeId(post.youtubeLinks[0])}/mqdefault.jpg` : 'https://picsum.photos/seed/astro/100/100')} 
+                      className="w-16 h-16 object-cover rounded-xl"
+                      referrerPolicy="no-referrer"
+                      onError={(e) => {
+                        (e.target as HTMLImageElement).src = 'https://picsum.photos/seed/astro/100/100';
+                      }}
+                    />
+                    {post.youtubeLinks && post.youtubeLinks.length > 0 && (
+                      <div className="absolute -bottom-1 -right-1 w-6 h-6 bg-red-600 rounded-lg flex items-center justify-center border-2 border-slate-900">
+                        <LinkIcon size={10} className="text-white" />
+                      </div>
+                    )}
+                  </div>
                   <div>
                     <h3 className="font-serif font-bold text-lg group-hover:text-pink-400 transition-colors">{post.title}</h3>
                     <p className="text-sm text-slate-400">{new Date(post.createdAt).toLocaleDateString()}</p>
                   </div>
                 </div>
-                <button 
-                  onClick={() => handleDeletePost(post.id)}
-                  className="p-3 bg-rose-500/20 text-rose-400 rounded-xl hover:bg-rose-500/30 transition-colors"
-                  title="Delete Post"
-                >
-                  <Trash2 size={20} />
-                </button>
+                <div className="flex flex-col gap-2">
+                  <button 
+                    onClick={() => {
+                      handleEditClick(post);
+                      // focus youtube input briefly
+                      setTimeout(() => {
+                        window.scrollTo({ top: 500, behavior: 'smooth' });
+                      }, 100);
+                    }}
+                    className="p-2 bg-pink-500/10 text-pink-400 rounded-lg hover:bg-pink-500/20 transition-colors"
+                    title="Add YouTube Link"
+                  >
+                    <LinkIcon size={18} />
+                  </button>
+                  <button 
+                    onClick={() => handleDeletePost(post.id)}
+                    className="p-2 bg-rose-500/10 text-rose-400 rounded-xl hover:bg-rose-500/20 transition-colors"
+                    title="Delete Post"
+                  >
+                    <Trash2 size={18} />
+                  </button>
+                </div>
               </div>
             ))}
           </div>

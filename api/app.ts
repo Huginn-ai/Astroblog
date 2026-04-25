@@ -38,9 +38,17 @@ async function initDb() {
       content TEXT NOT NULL,
       excerpt TEXT,
       images TEXT,
+      youtubeLinks TEXT,
       createdAt DATETIME DEFAULT CURRENT_TIMESTAMP
     );
   `);
+
+  // Migration for existing databases
+  try {
+    await db.execute('ALTER TABLE posts ADD COLUMN youtubeLinks TEXT');
+  } catch (e) {
+    // Column might already exist
+  }
 
   await db.execute(`
     CREATE TABLE IF NOT EXISTS comments (
@@ -228,7 +236,11 @@ export async function createApp() {
 
   app.get('/api/posts', async (req, res) => {
     const result = await db.execute('SELECT * FROM posts ORDER BY createdAt DESC');
-    res.json(result.rows.map((p: any) => ({ ...p, images: JSON.parse(p.images || '[]') })));
+    res.json(result.rows.map((p: any) => ({ 
+      ...p, 
+      images: JSON.parse(p.images || '[]'),
+      youtubeLinks: JSON.parse(p.youtubeLinks || '[]')
+    })));
   });
 
   app.get('/api/posts/:id', async (req, res) => {
@@ -238,12 +250,16 @@ export async function createApp() {
     });
     const post = result.rows[0] as any;
     if (!post) return res.status(404).json({ error: 'Post not found' });
-    res.json({ ...post, images: JSON.parse(post.images || '[]') });
+    res.json({ 
+      ...post, 
+      images: JSON.parse(post.images || '[]'),
+      youtubeLinks: JSON.parse(post.youtubeLinks || '[]')
+    });
   });
 
   app.post('/api/posts', upload.array('images'), isAdmin, async (req: any, res) => {
     try {
-      const { title, content, excerpt } = req.body;
+      const { title, content, excerpt, youtubeLinks } = req.body;
       const files = req.files as any[] || [];
       
       console.log(`Creating post: ${title}, files count: ${files.length}`);
@@ -273,8 +289,8 @@ export async function createApp() {
 
       console.log('Inserting post into database...');
       const result = await db.execute({
-        sql: 'INSERT INTO posts (title, content, excerpt, images) VALUES (?, ?, ?, ?)',
-        args: [title, content, excerpt, JSON.stringify(imageUrls)]
+        sql: 'INSERT INTO posts (title, content, excerpt, images, youtubeLinks) VALUES (?, ?, ?, ?, ?)',
+        args: [title, content, excerpt, JSON.stringify(imageUrls), youtubeLinks || '[]']
       });
       console.log('Post created successfully');
       res.json({ id: Number(result.lastInsertRowid) });
@@ -290,7 +306,7 @@ export async function createApp() {
 
   app.patch('/api/posts/:id', upload.array('images'), isAdmin, async (req: any, res) => {
     try {
-      const { title, content, excerpt, existingImages } = req.body;
+      const { title, content, excerpt, existingImages, youtubeLinks } = req.body;
       const files = req.files as any[] || [];
       
       console.log(`Updating post ${req.params.id}: ${title}, new files count: ${files.length}`);
@@ -322,8 +338,8 @@ export async function createApp() {
       
       console.log('Updating database...');
       await db.execute({
-        sql: 'UPDATE posts SET title = ?, content = ?, excerpt = ?, images = ? WHERE id = ?',
-        args: [title, content, excerpt, JSON.stringify(images), req.params.id]
+        sql: 'UPDATE posts SET title = ?, content = ?, excerpt = ?, images = ?, youtubeLinks = ? WHERE id = ?',
+        args: [title, content, excerpt, JSON.stringify(images), youtubeLinks || '[]', req.params.id]
       });
       console.log('Post updated successfully');
       res.json({ success: true });
