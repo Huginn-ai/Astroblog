@@ -194,6 +194,52 @@ export async function createApp() {
     }
   });
 
+  // RSS Feed Route
+  app.get('/api/rss', async (req, res) => {
+    try {
+      const postsResult = await db.execute('SELECT * FROM posts ORDER BY createdAt DESC');
+      const settingsResult = await db.execute('SELECT siteName FROM settings WHERE id = 1');
+      const siteName = settingsResult.rows[0]?.siteName || 'Celestial Blog';
+      const host = req.get('host');
+      const protocol = req.headers['x-forwarded-proto'] || req.protocol;
+      const baseUrl = `${protocol}://${host}`;
+
+      let rss = `<?xml version="1.0" encoding="UTF-8" ?>
+<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">
+<channel>
+  <title>${siteName}</title>
+  <link>${baseUrl}</link>
+  <description>Latest celestial messages from ${siteName}</description>
+  <language>en-us</language>
+  <lastBuildDate>${new Date().toUTCString()}</lastBuildDate>
+  <atom:link href="${baseUrl}/api/rss" rel="self" type="application/rss+xml" />
+`;
+
+      postsResult.rows.forEach((post: any) => {
+        const pubDate = new Date(post.createdAt).toUTCString();
+        const postUrl = `${baseUrl}/post/${post.id}`;
+        rss += `
+  <item>
+    <title><![CDATA[${post.title}]]></title>
+    <link>${postUrl}</link>
+    <guid isPermaLink="true">${postUrl}</guid>
+    <pubDate>${pubDate}</pubDate>
+    <description><![CDATA[${post.excerpt || post.content.substring(0, 160) + '...'}]]></description>
+  </item>`;
+      });
+
+      rss += `
+</channel>
+</rss>`;
+
+      res.header('Content-Type', 'application/xml');
+      res.send(rss);
+    } catch (error) {
+      console.error('Error generating RSS feed:', error);
+      res.status(500).send('Error generating RSS feed');
+    }
+  });
+
   // Auth Routes
   app.post('/api/admin/login', (req: any, res) => {
     const { password } = req.body;

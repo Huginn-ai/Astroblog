@@ -77,6 +77,19 @@ export default function App() {
                 <span className="w-1.5 h-1.5 rounded-full bg-blue-500 animate-pulse"></span>
                 <span>Unique IP: <span className="text-blue-400 font-bold">{stats.unique.toLocaleString()}</span></span>
               </div>
+              <a 
+                href="/api/rss" 
+                target="_blank" 
+                rel="noopener noreferrer"
+                className="flex items-center gap-1.5 grayscale opacity-70 hover:grayscale-0 hover:opacity-100 transition-all duration-300"
+              >
+                <div className="w-4 h-4 rounded bg-orange-500/20 flex items-center justify-center p-0.5">
+                  <svg viewBox="0 0 24 24" className="w-full h-full text-orange-400 fill-current">
+                    <path d="M6.18,15.64A2.18,2.18,0,0,1,8.36,17.82,2.18,2.18,0,0,1,6.18,20,2.18,2.18,0,0,1,4,17.82,2.18,2.18,0,0,1,6.18,15.64M4,4.44A15.56,15.56,0,0,1,19.56,20h-2.83A12.73,12.73,0,0,0,4,7.27V4.44M4,10.1A9.9,9.9,0,0,1,13.9,20H11.07A7.07,7.07,0,0,0,4,12.93V10.1Z" />
+                  </svg>
+                </div>
+                <span>RSS Feed</span>
+              </a>
             </div>
           </div>
         </footer>
