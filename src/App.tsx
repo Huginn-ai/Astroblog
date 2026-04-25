@@ -7,6 +7,7 @@ import { AboutMe } from './pages/AboutMe';
 import { api } from './services/api';
 import { Settings } from './types';
 import { Moon, Sun, Sparkles, Settings as SettingsIcon } from 'lucide-react';
+import { Toaster, toast } from 'sonner';
 
 export default function App() {
   const [settings, setSettings] = useState<Settings>({
@@ -19,8 +20,12 @@ export default function App() {
   const [stats, setStats] = useState<{ total: number; unique: number }>({ total: 0, unique: 0 });
 
   useEffect(() => {
-    api.getSettings().then(setSettings);
-    api.getStats().then(setStats).catch(console.error);
+    api.getSettings().then(setSettings).catch(err => {
+      toast.error('Failed to align celestial settings');
+    });
+    api.getStats().then(setStats).catch(err => {
+      console.error('Stats error:', err);
+    });
   }, []);
 
   useEffect(() => {
@@ -30,6 +35,7 @@ export default function App() {
 
   return (
     <Router>
+      <Toaster position="top-right" theme="dark" richColors />
       <div className="min-h-screen flex flex-col">
         <header className="sticky top-0 z-50 glass border-b border-white/10">
           <div className="max-w-7xl mx-auto px-4 h-16 flex items-center justify-between">

@@ -4,7 +4,54 @@ import { api } from '../services/api';
 import { Post, Comment } from '../types';
 import { motion } from 'motion/react';
 import ReactMarkdown from 'react-markdown';
-import { Calendar, User, MessageSquare, ArrowLeft, Send } from 'lucide-react';
+import { Calendar, User, MessageSquare, ArrowLeft, Send, Play } from 'lucide-react';
+import { getYoutubeThumbnail, getYoutubeId, getYoutubeThumbnailFallback } from '../utils/youtube';
+import { toast } from 'sonner';
+
+function YouTubePlayer({ videoId, index }: { videoId: string, index: number }) {
+  const [isPlaying, setIsPlaying] = useState(false);
+
+  if (isPlaying) {
+    return (
+      <div className="aspect-video w-full rounded-3xl overflow-hidden shadow-2xl border border-white/10 bg-black/20">
+        <iframe
+          width="100%"
+          height="100%"
+          src={`https://www.youtube.com/embed/${videoId}?autoplay=1`}
+          title={`YouTube video player ${index}`}
+          frameBorder="0"
+          allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+          allowFullScreen
+        ></iframe>
+      </div>
+    );
+  }
+
+  return (
+    <div 
+      className="relative aspect-video w-full rounded-3xl overflow-hidden shadow-2xl border border-white/10 cursor-pointer group bg-black/20"
+      onClick={() => setIsPlaying(true)}
+    >
+      <img 
+        src={getYoutubeThumbnail(`https://www.youtube.com/watch?v=${videoId}`) || ''} 
+        alt="YouTube thumbnail"
+        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700" 
+        onError={(e) => {
+          (e.target as HTMLImageElement).src = `https://img.youtube.com/vi/${videoId}/mqdefault.jpg`;
+        }}
+      />
+      <div className="absolute inset-0 bg-black/30 group-hover:bg-black/10 transition-colors flex items-center justify-center">
+        <div className="w-20 h-20 bg-pink-500 rounded-full flex items-center justify-center shadow-2xl shadow-pink-500/50 transform group-hover:scale-110 transition-transform">
+          <Play size={32} fill="white" className="text-white ml-2" />
+        </div>
+      </div>
+      <div className="absolute top-4 left-4 px-3 py-1 bg-black/60 backdrop-blur-md rounded-full border border-white/10 text-[10px] text-white font-bold uppercase tracking-widest flex items-center gap-2">
+        <div className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse" />
+        YouTube Link {index + 1}
+      </div>
+    </div>
+  );
+}
 
 export function BlogPost() {
   const { id } = useParams<{ id: string }>();
@@ -39,6 +86,7 @@ export function BlogPost() {
       setLoading(false);
     }).catch(err => {
       console.error('Failed to fetch post data:', err);
+      toast.error(err.message || 'Failed to fetch celestial insight');
       setLoading(false);
     });
     fetchCaptcha();
@@ -56,10 +104,12 @@ export function BlogPost() {
       setCommentContent('');
       setCaptchaSolution('');
       setSubmitted(true);
+      toast.success('Thought transmitted successfully! Awaiting moderation.');
       fetchCaptcha();
       setTimeout(() => setSubmitted(false), 3000);
     } catch (err: any) {
       setError(err.message || 'Failed to add comment');
+      toast.error(err.message || 'Transmission failed');
       fetchCaptcha();
       setCaptchaSolution('');
     } finally {
@@ -135,25 +185,9 @@ export function BlogPost() {
         {post.youtubeLinks && post.youtubeLinks.length > 0 && (
           <div className="grid grid-cols-1 gap-8">
             {post.youtubeLinks.map((url, i) => {
-              const regExp = /^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|&v=)([^#&?]*).*/;
-              const match = url.match(regExp);
-              const videoId = (match && match[2].length === 11) ? match[2] : null;
-              
+              const videoId = getYoutubeId(url);
               if (!videoId) return null;
-
-              return (
-                <div key={i} className="aspect-video w-full rounded-3xl overflow-hidden shadow-2xl border border-white/10 bg-black/20">
-                  <iframe
-                    width="100%"
-                    height="100%"
-                    src={`https://www.youtube.com/embed/${videoId}`}
-                    title={`YouTube video player ${i}`}
-                    frameBorder="0"
-                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
-                    allowFullScreen
-                  ></iframe>
-                </div>
-              );
+              return <YouTubePlayer key={i} videoId={videoId} index={i} />;
             })}
           </div>
         )}

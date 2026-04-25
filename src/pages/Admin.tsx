@@ -3,6 +3,7 @@ import { api } from '../services/api';
 import { Post, Comment, Settings } from '../types';
 import { motion, Reorder } from 'motion/react';
 import imageCompression from 'browser-image-compression';
+import { toast } from 'sonner';
 import { 
   Plus, 
   Trash2, 
@@ -41,6 +42,7 @@ export function Admin({ settings, onSettingsUpdate }: AdminProps) {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [compressionStatus, setCompressionStatus] = useState<string | null>(null);
+  const [uploadProgress, setUploadProgress] = useState<number | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const [postToDelete, setPostToDelete] = useState<number | null>(null);
@@ -68,8 +70,10 @@ export function Admin({ settings, onSettingsUpdate }: AdminProps) {
       const res = await fetch('/api/admin/debug', { credentials: 'include' });
       const data = await res.json();
       setDebugInfo(data);
-    } catch (err) {
+      toast.info('Debug frequencies analyzed');
+    } catch (err: any) {
       setDebugInfo({ error: 'Failed to fetch debug info' });
+      toast.error('Failed to analyze debug frequencies');
     }
   };
 
@@ -80,8 +84,10 @@ export function Admin({ settings, onSettingsUpdate }: AdminProps) {
     try {
       await api.login(loginPassword);
       setIsAdmin(true);
+      toast.success('Celestial portal unlocked');
     } catch (err: any) {
       setError(err.message || 'Login failed');
+      toast.error(err.message || 'Login failed');
     } finally {
       setIsSubmitting(false);
     }
@@ -109,6 +115,7 @@ export function Admin({ settings, onSettingsUpdate }: AdminProps) {
         setError('Session expired or unauthorized. If you are using Brave, Safari, or Chrome in an iframe, ensure third-party celestial cookies are enabled or try opening the app in a new tab.'); 
       } else {
         setError(msg || 'Failed to refresh data');
+        toast.error(msg || 'Failed to refresh data');
       }
     }
   };
@@ -166,15 +173,22 @@ export function Admin({ settings, onSettingsUpdate }: AdminProps) {
         }
       }
       setCompressionStatus('Uploading to celestial storage...');
+      setUploadProgress(0);
       addLog('Sending request to server...');
       
+      const onUploadProgress = (percent: number) => {
+        setUploadProgress(percent);
+        setCompressionStatus(`Uploading: ${percent}%`);
+      };
+
       if (editingPost) {
-        await api.updatePost(editingPost.id, formData);
+        await api.updatePost(editingPost.id, formData, onUploadProgress);
       } else {
-        await api.createPost(formData);
+        await api.createPost(formData, onUploadProgress);
       }
       
       addLog('Post saved successfully');
+      toast.success(editingPost ? 'Post updated successfully' : 'New post published');
       setNewPost({ title: '', content: '', excerpt: '' });
       setYoutubeLinks([]);
       setYoutubeUrlInput('');
@@ -186,9 +200,11 @@ export function Admin({ settings, onSettingsUpdate }: AdminProps) {
     } catch (err: any) {
       addLog(`Save error: ${err.message}`);
       setError(err.message || 'Failed to save post. The cosmic connection might be weak.');
+      toast.error(err.message || 'Failed to save post');
     } finally {
       setIsSubmitting(false);
       setCompressionStatus(null);
+      setUploadProgress(null);
     }
   };
 
@@ -212,20 +228,28 @@ export function Admin({ settings, onSettingsUpdate }: AdminProps) {
     try {
       await api.deletePost(postToDelete);
       setPostToDelete(null);
+      toast.success('Post deleted from the stars');
       refreshData();
-    } catch (error) {
+    } catch (error: any) {
       console.error('Failed to delete post:', error);
       setError('Failed to delete post');
+      toast.error(error.message || 'Failed to delete post');
     }
   };
 
   const handleCommentAction = async (id: number, status: 'approved' | 'rejected' | 'delete') => {
-    if (status === 'delete') {
-      await api.deleteComment(id);
-    } else {
-      await api.updateCommentStatus(id, status);
+    try {
+      if (status === 'delete') {
+        await api.deleteComment(id);
+        toast.success('Comment erased');
+      } else {
+        await api.updateCommentStatus(id, status);
+        toast.success(`Comment ${status}`);
+      }
+      refreshData();
+    } catch (error: any) {
+      toast.error(error.message || `Failed to ${status} comment`);
     }
-    refreshData();
   };
 
   const moveImage = (index: number, direction: 'up' | 'down') => {
@@ -246,8 +270,12 @@ export function Admin({ settings, onSettingsUpdate }: AdminProps) {
 
   const handleSettingsUpdate = async (e: React.FormEvent) => {
     e.preventDefault();
-    await api.updateSettings(settings);
-    alert('Settings updated successfully!');
+    try {
+      await api.updateSettings(settings);
+      toast.success('Celestial alignment saved');
+    } catch (error: any) {
+      toast.error(error.message || 'Failed to update settings');
+    }
   };
 
   const moveYoutubeLink = (index: number, direction: 'up' | 'down') => {
@@ -268,12 +296,16 @@ export function Admin({ settings, onSettingsUpdate }: AdminProps) {
   const handleAddYoutubeLink = () => {
     const videoId = getYoutubeId(youtubeUrlInput);
     if (!videoId) {
-      setError('Invalid YouTube URL. Please provide a valid celestial transmission link.');
+      const msg = 'Invalid YouTube URL. Please provide a valid celestial transmission link.';
+      setError(msg);
+      toast.error(msg);
       return;
     }
     
     if (youtubeLinks.includes(youtubeUrlInput)) {
-      setError('This celestial video is already linked.');
+      const msg = 'This celestial video is already linked.';
+      setError(msg);
+      toast.error(msg);
       return;
     }
 
@@ -339,7 +371,20 @@ export function Admin({ settings, onSettingsUpdate }: AdminProps) {
             </div>
 
             {error && (
-              <p className="text-rose-400 text-sm font-medium">{error}</p>
+              <div className="space-y-4">
+                <p className="text-rose-400 text-sm font-medium">{error}</p>
+                <div className="p-4 bg-blue-500/10 border border-blue-500/20 rounded-xl text-xs text-blue-300">
+                  <p className="mb-2"><strong>Tip:</strong> If you are stuck in a login loop, try opening the celestial portal in a new tab to bypass iframe celestial restrictions.</p>
+                  <a 
+                    href={window.location.href} 
+                    target="_blank" 
+                    rel="noopener noreferrer"
+                    className="inline-block px-4 py-2 bg-blue-500/20 hover:bg-blue-500/30 rounded-lg transition-colors font-bold text-blue-400"
+                  >
+                    Open in New Tab
+                  </a>
+                </div>
+              </div>
             )}
 
             <button 
@@ -621,10 +666,13 @@ export function Admin({ settings, onSettingsUpdate }: AdminProps) {
                               <GripVertical size={20} />
                             </div>
                             
-                            <div className="w-32 aspect-video rounded-lg overflow-hidden border border-white/10 flex-shrink-0">
+                            <div className="w-32 aspect-video rounded-lg overflow-hidden border border-white/10 flex-shrink-0 mb-2 sm:mb-0">
                               <img 
-                                src={`https://img.youtube.com/vi/${videoId}/mqdefault.jpg`} 
-                                className="w-full h-full object-cover" 
+                                src={`https://img.youtube.com/vi/${videoId}/maxresdefault.jpg`} 
+                                className="w-full h-full object-cover"
+                                onError={(e) => {
+                                  (e.target as HTMLImageElement).src = `https://img.youtube.com/vi/${videoId}/mqdefault.jpg`;
+                                }}
                               />
                             </div>
                             
@@ -661,7 +709,18 @@ export function Admin({ settings, onSettingsUpdate }: AdminProps) {
                   <span>{isSubmitting ? 'Saving...' : editingPost ? 'Update Celestial Insight' : 'Publish Celestial Insight'}</span>
                 </div>
                 {compressionStatus && (
-                  <span className="text-xs text-white/70 italic font-normal">{compressionStatus}</span>
+                  <div className="w-full mt-2 space-y-1">
+                    <span className="text-xs text-white/70 italic font-normal">{compressionStatus}</span>
+                    {uploadProgress !== null && (
+                      <div className="w-full h-1 bg-white/10 rounded-full overflow-hidden">
+                        <motion.div 
+                          initial={{ width: 0 }}
+                          animate={{ width: `${uploadProgress}%` }}
+                          className="h-full bg-pink-500"
+                        />
+                      </div>
+                    )}
+                  </div>
                 )}
               </button>
               {editingPost && (

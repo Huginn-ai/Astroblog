@@ -120,21 +120,37 @@ export async function createApp() {
   
   const app = express();
 
-  app.set('trust proxy', true);
+  app.set('trust proxy', 1); // Exact value for proxy behind load balancer
   
   app.use(cookieSession({
     name: 'astro_session',
     keys: [process.env.SESSION_SECRET || 'astro-celestial-key-v1'],
     maxAge: 24 * 60 * 60 * 1000,
-    // Try to be more flexible with secure, but keep sameSite 'none' for iframes
-    // sameSite: 'none' REQUIRES secure: true in some browsers
     secure: true, 
     sameSite: 'none',
     httpOnly: true,
-    proxy: true,
-    // @ts-ignore - partitioned is a newer attribute for iframe cookies
-    partitioned: true
-  } as any));
+  }));
+
+  // Middleware to ensure cookies are Partitioned for modern browser iframe support
+  app.use((req, res, next) => {
+    const originalSetHeader = res.setHeader;
+    res.setHeader = function(name: string, value: any) {
+      if (name.toLowerCase() === 'set-cookie' && Array.isArray(value)) {
+        value = value.map(v => {
+          if (v.includes('SameSite=None') && !v.includes('Partitioned')) {
+            return v + '; Partitioned';
+          }
+          return v;
+        });
+      } else if (name.toLowerCase() === 'set-cookie' && typeof value === 'string') {
+        if (value.includes('SameSite=None') && !value.includes('Partitioned')) {
+          value = value + '; Partitioned';
+        }
+      }
+      return originalSetHeader.call(this, name, value);
+    };
+    next();
+  });
 
   app.use(cors({
     origin: (origin, callback) => {

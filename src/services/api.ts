@@ -39,54 +39,81 @@ export const api = {
     }
     return res.json();
   },
-  createPost: async (formData: FormData): Promise<{ id: number }> => {
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 60000); // 60s timeout for uploads
-    
-    try {
-      const res = await fetch(`${API_BASE}/posts`, {
-        method: 'POST',
-        body: formData,
-        credentials: 'include',
-        signal: controller.signal,
-      });
-      clearTimeout(timeoutId);
-      if (!res.ok) {
-        const error = await res.json().catch(() => ({ error: 'Unauthorized' }));
-        throw new Error(error.error || 'Failed to create post');
+  createPost: async (formData: FormData, onProgress?: (percent: number) => void): Promise<{ id: number }> => {
+    return new Promise((resolve, reject) => {
+      const xhr = new XMLHttpRequest();
+      xhr.open('POST', `${API_BASE}/posts`);
+      xhr.withCredentials = true;
+
+      if (onProgress) {
+        xhr.upload.onprogress = (event) => {
+          if (event.lengthComputable) {
+            const percent = Math.round((event.loaded / event.total) * 100);
+            onProgress(percent);
+          }
+        };
       }
-      return res.json();
-    } catch (err: any) {
-      clearTimeout(timeoutId);
-      if (err.name === 'AbortError') {
-        throw new Error('Upload timed out. The celestial connection is too slow.');
-      }
-      throw err;
-    }
+
+      xhr.onload = () => {
+        if (xhr.status >= 200 && xhr.status < 300) {
+          try {
+            resolve(JSON.parse(xhr.responseText));
+          } catch (e) {
+            resolve({ id: 0 } as any);
+          }
+        } else {
+          try {
+            const error = JSON.parse(xhr.responseText);
+            reject(new Error(error.error || 'Failed to create post'));
+          } catch (e) {
+            reject(new Error('Failed to create post'));
+          }
+        }
+      };
+
+      xhr.onerror = () => reject(new Error('Network error. The celestial connection failed.'));
+      xhr.onabort = () => reject(new Error('Upload aborted.'));
+      xhr.ontimeout = () => reject(new Error('Upload timed out.'));
+      
+      xhr.timeout = 60000;
+      xhr.send(formData);
+    });
   },
-  updatePost: async (id: number | string, formData: FormData): Promise<void> => {
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 60000); // 60s timeout for uploads
-    
-    try {
-      const res = await fetch(`${API_BASE}/posts/${id}`, {
-        method: 'PATCH',
-        body: formData,
-        credentials: 'include',
-        signal: controller.signal,
-      });
-      clearTimeout(timeoutId);
-      if (!res.ok) {
-        const error = await res.json().catch(() => ({ error: 'Unauthorized' }));
-        throw new Error(error.error || 'Failed to update post');
+  updatePost: async (id: number | string, formData: FormData, onProgress?: (percent: number) => void): Promise<void> => {
+    return new Promise((resolve, reject) => {
+      const xhr = new XMLHttpRequest();
+      xhr.open('PATCH', `${API_BASE}/posts/${id}`);
+      xhr.withCredentials = true;
+
+      if (onProgress) {
+        xhr.upload.onprogress = (event) => {
+          if (event.lengthComputable) {
+            const percent = Math.round((event.loaded / event.total) * 100);
+            onProgress(percent);
+          }
+        };
       }
-    } catch (err: any) {
-      clearTimeout(timeoutId);
-      if (err.name === 'AbortError') {
-        throw new Error('Upload timed out. The celestial connection is too slow.');
-      }
-      throw err;
-    }
+
+      xhr.onload = () => {
+        if (xhr.status >= 200 && xhr.status < 300) {
+          resolve();
+        } else {
+          try {
+            const error = JSON.parse(xhr.responseText);
+            reject(new Error(error.error || 'Failed to update post'));
+          } catch (e) {
+            reject(new Error('Failed to update post'));
+          }
+        }
+      };
+
+      xhr.onerror = () => reject(new Error('Network error. The celestial connection failed.'));
+      xhr.onabort = () => reject(new Error('Upload aborted.'));
+      xhr.ontimeout = () => reject(new Error('Upload timed out.'));
+      
+      xhr.timeout = 60000;
+      xhr.send(formData);
+    });
   },
   deletePost: async (id: number | string): Promise<void> => {
     const res = await fetch(`${API_BASE}/posts/${id}`, {

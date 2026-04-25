@@ -4,6 +4,8 @@ import { api } from '../services/api';
 import { Post } from '../types';
 import { motion } from 'motion/react';
 import { Calendar, ArrowRight, Search } from 'lucide-react';
+import { getYoutubeThumbnail, getYoutubeId } from '../utils/youtube';
+import { toast } from 'sonner';
 
 export function Home() {
   const [posts, setPosts] = useState<Post[]>([]);
@@ -11,10 +13,16 @@ export function Home() {
   const [searchTerm, setSearchTerm] = useState('');
 
   useEffect(() => {
-    api.getPosts().then(data => {
-      setPosts(data);
-      setLoading(false);
-    });
+    api.getPosts()
+      .then(data => {
+        setPosts(data);
+      })
+      .catch(err => {
+        toast.error(err.message || 'Failed to fetch celestial insights');
+      })
+      .finally(() => {
+        setLoading(false);
+      });
   }, []);
 
   const filteredPosts = posts.filter(post => 
@@ -74,12 +82,22 @@ export function Home() {
           >
             <Link to={`/post/${post.id}`} className="block aspect-video overflow-hidden">
               <img 
-                src={post.images[0] || 'https://picsum.photos/seed/astro/800/600'} 
+                src={
+                  post.images?.[0] || 
+                  (post.youtubeLinks?.[0] ? getYoutubeThumbnail(post.youtubeLinks[0]) : null) || 
+                  'https://picsum.photos/seed/astro/800/600'
+                } 
                 alt={post.title}
                 className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
                 referrerPolicy="no-referrer"
                 onError={(e) => {
-                  (e.target as HTMLImageElement).src = 'https://picsum.photos/seed/astro/800/600';
+                  const target = e.target as HTMLImageElement;
+                  const videoId = post.youtubeLinks?.[0] ? getYoutubeId(post.youtubeLinks[0]) : null;
+                  if (videoId && target.src !== `https://img.youtube.com/vi/${videoId}/mqdefault.jpg`) {
+                    target.src = `https://img.youtube.com/vi/${videoId}/mqdefault.jpg`;
+                  } else {
+                    target.src = 'https://picsum.photos/seed/astro/800/600';
+                  }
                 }}
               />
             </Link>
