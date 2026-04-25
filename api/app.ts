@@ -54,6 +54,25 @@ async function initDb() {
     );
   `);
 
+  await db.execute(`
+    CREATE TABLE IF NOT EXISTS analytics (
+      id INTEGER PRIMARY KEY DEFAULT 1,
+      total_visits INTEGER DEFAULT 0
+    );
+  `);
+
+  await db.execute(`
+    CREATE TABLE IF NOT EXISTS ip_logs (
+      ip TEXT PRIMARY KEY,
+      visited_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    );
+  `);
+
+  // Check if analytics row exists
+  const analyticsCheck = await db.execute('SELECT total_visits FROM analytics WHERE id = 1');
+  if (analyticsCheck.rows.length === 0) {
+    await db.execute('INSERT INTO analytics (id, total_visits) VALUES (1, 0)');
+  }
   // Check if settings exist
   const settingsCheck = await db.execute('SELECT id FROM settings WHERE id = 1');
   if (settingsCheck.rows.length === 0) {
@@ -138,6 +157,34 @@ export async function createApp() {
       res.status(401).json({ error: 'Unauthorized' });
     }
   };
+
+  // Stats Route
+  app.get('/api/stats', async (req, res) => {
+    try {
+      const ip = req.ip || req.headers['x-forwarded-for'] || 'unknown';
+      
+      // Increment total visits
+      await db.execute('UPDATE analytics SET total_visits = total_visits + 1 WHERE id = 1');
+      
+      // Log IP for unique count
+      await db.execute({
+        sql: 'INSERT OR REPLACE INTO ip_logs (ip, visited_at) VALUES (?, CURRENT_TIMESTAMP)',
+        args: [String(ip)]
+      });
+      
+      // Get counts
+      const totalResult = await db.execute('SELECT total_visits FROM analytics WHERE id = 1');
+      const uniqueResult = await db.execute('SELECT COUNT(*) as unique_count FROM ip_logs');
+      
+      res.json({
+        total: totalResult.rows[0]?.total_visits || 0,
+        unique: uniqueResult.rows[0]?.unique_count || 0
+      });
+    } catch (error) {
+      console.error('Error fetching/updating stats:', error);
+      res.status(500).json({ error: 'Failed to fetch stats' });
+    }
+  });
 
   // Auth Routes
   app.post('/api/admin/login', (req: any, res) => {

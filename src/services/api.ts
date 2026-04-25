@@ -176,4 +176,11 @@ export const api = {
     const data = await res.json();
     return data.isAdmin;
   },
+  getStats: async (): Promise<{ total: number, unique: number }> => {
+    const res = await fetch(`${API_BASE}/stats`, { credentials: 'include' });
+    if (!res.ok) {
+      throw new Error('Failed to fetch stats');
+    }
+    return res.json();
+  },
 };

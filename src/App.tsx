@@ -16,9 +16,11 @@ export default function App() {
     skyLink: 'https://google.com',
     aboutMe: 'Hello, I am the author of this blog.'
   });
+  const [stats, setStats] = useState<{ total: number; unique: number }>({ total: 0, unique: 0 });
 
   useEffect(() => {
     api.getSettings().then(setSettings);
+    api.getStats().then(setStats).catch(console.error);
   }, []);
 
   useEffect(() => {
@@ -66,6 +68,16 @@ export default function App() {
         <footer className="glass border-t border-white/10 py-12 mt-24">
           <div className="max-w-7xl mx-auto px-4 text-center">
             <p className="text-slate-400">© 2026 {settings.siteName}. Written in the stars.</p>
+            <div className="mt-4 flex items-center justify-center gap-6 text-sm text-slate-500 font-mono">
+              <div className="flex items-center gap-1.5 grayscale opacity-70 hover:grayscale-0 hover:opacity-100 transition-all duration-300">
+                <span className="w-1.5 h-1.5 rounded-full bg-pink-500 animate-pulse"></span>
+                <span>Total Access: <span className="text-pink-400 font-bold">{stats.total.toLocaleString()}</span></span>
+              </div>
+              <div className="flex items-center gap-1.5 grayscale opacity-70 hover:grayscale-0 hover:opacity-100 transition-all duration-300">
+                <span className="w-1.5 h-1.5 rounded-full bg-blue-500 animate-pulse"></span>
+                <span>Unique IP: <span className="text-blue-400 font-bold">{stats.unique.toLocaleString()}</span></span>
+              </div>
+            </div>
           </div>
         </footer>
       </div>

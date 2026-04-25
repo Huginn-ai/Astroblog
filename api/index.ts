@@ -2,8 +2,9 @@ import { createApp } from './app.js';
 import express from 'express';
 import path from 'path';
 
-export default (async () => {
+async function startServer() {
   const app = await createApp();
+  const PORT = process.env.PORT || 3000;
 
   // In production on Vercel, static files are served by Vercel's edge,
   // but we keep this for local production testing or other environments.
@@ -18,5 +19,9 @@ export default (async () => {
     });
   }
 
-  return app;
-})();
+  app.listen(Number(PORT), '0.0.0.0', () => {
+    console.log(`Server running on http://localhost:${PORT}`);
+  });
+}
+
+startServer();

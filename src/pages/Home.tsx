@@ -3,11 +3,12 @@ import { Link } from 'react-router-dom';
 import { api } from '../services/api';
 import { Post } from '../types';
 import { motion } from 'motion/react';
-import { Calendar, ArrowRight } from 'lucide-react';
+import { Calendar, ArrowRight, Search } from 'lucide-react';
 
 export function Home() {
   const [posts, setPosts] = useState<Post[]>([]);
   const [loading, setLoading] = useState(true);
+  const [searchTerm, setSearchTerm] = useState('');
 
   useEffect(() => {
     api.getPosts().then(data => {
@@ -15,6 +16,12 @@ export function Home() {
       setLoading(false);
     });
   }, []);
+
+  const filteredPosts = posts.filter(post => 
+    post.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    post.content.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    (post.excerpt && post.excerpt.toLowerCase().includes(searchTerm.toLowerCase()))
+  );
 
   if (loading) {
     return (
@@ -28,7 +35,7 @@ export function Home() {
 
   return (
     <div className="space-y-12">
-      <section className="text-center space-y-4 mb-16">
+      <section className="text-center space-y-4 mb-8">
         <motion.h1 
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
@@ -41,8 +48,23 @@ export function Home() {
         </p>
       </section>
 
+      <section className="max-w-xl mx-auto mb-16 relative">
+        <div className="relative group">
+          <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+            <Search size={20} className="text-slate-500 group-focus-within:text-pink-500 transition-colors" />
+          </div>
+          <input
+            type="text"
+            placeholder="Search the cosmos..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="w-full bg-slate-900/50 border border-slate-800 rounded-2xl py-4 pl-12 pr-4 focus:outline-none focus:ring-2 focus:ring-pink-500/50 focus:border-pink-500 transition-all text-lg placeholder:text-slate-600"
+          />
+        </div>
+      </section>
+
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-        {Array.isArray(posts) && posts.map((post, index) => (
+        {Array.isArray(filteredPosts) && filteredPosts.map((post, index) => (
           <motion.article
             key={post.id}
             initial={{ opacity: 0, y: 20 }}
@@ -88,9 +110,13 @@ export function Home() {
         ))}
       </div>
 
-      {posts.length === 0 && (
+      {filteredPosts.length === 0 && (
         <div className="text-center py-24 glass rounded-3xl">
-          <p className="text-slate-400">No celestial messages found yet. Check back soon!</p>
+          <p className="text-slate-400">
+            {searchTerm 
+              ? `No celestial messages found matching "${searchTerm}". Try another search.`
+              : "No celestial messages found yet. Check back soon!"}
+          </p>
         </div>
       )}
     </div>
