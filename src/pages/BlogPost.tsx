@@ -152,48 +152,98 @@ export function BlogPost() {
           </div>
         </header>
 
+        {/* Hero Image */}
         {Array.isArray(post.images) && post.images.length > 0 && (
-          <div className="grid grid-cols-1 gap-4">
+          <motion.div 
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            className="relative"
+          >
             <img 
               src={post.images[0]} 
               alt={post.title}
-              className="w-full rounded-3xl shadow-2xl"
+              className="w-full rounded-[2rem] shadow-2xl border border-white/10"
               referrerPolicy="no-referrer"
               onError={(e) => {
                 (e.target as HTMLImageElement).src = 'https://picsum.photos/seed/astro/1200/800';
               }}
             />
-            {post.images.slice(1).length > 0 && (
-              <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-                {post.images.slice(1).map((img, i) => (
-                  <img 
-                    key={i} 
-                    src={img} 
-                    alt={`${post.title} ${i + 2}`}
-                    className="w-full aspect-square object-cover rounded-2xl"
-                    referrerPolicy="no-referrer"
-                    onError={(e) => {
-                      (e.target as HTMLImageElement).src = `https://picsum.photos/seed/astro-${i}/400/400`;
-                    }}
-                  />
-                ))}
-              </div>
+            <div className="absolute inset-0 rounded-[2rem] ring-1 ring-inset ring-white/10 pointer-events-none" />
+          </motion.div>
+        )}
+
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-12">
+          {/* Main Content */}
+          <div className="lg:col-span-8 space-y-12">
+            <div className="markdown-body prose prose-invert prose-pink max-w-none">
+              <ReactMarkdown>{post.content}</ReactMarkdown>
+            </div>
+
+            {/* Additional Media Gallery */}
+            {((post.images && post.images.length > 1) || (post.youtubeLinks && post.youtubeLinks.length > 0)) && (
+              <section className="space-y-6">
+                <h3 className="text-2xl font-serif font-bold text-pink-400">Media & Reflections</h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  {post.images.slice(1).map((img, i) => (
+                    <motion.div 
+                      key={`img-${i}`}
+                      whileHover={{ scale: 1.02 }}
+                      className="group relative aspect-square overflow-hidden rounded-3xl border border-white/10"
+                    >
+                      <img 
+                        src={img} 
+                        alt={`${post.title} gallery ${i}`}
+                        className="w-full h-full object-cover"
+                        referrerPolicy="no-referrer"
+                        onError={(e) => {
+                          (e.target as HTMLImageElement).src = `https://picsum.photos/seed/astro-${i}/600/600`;
+                        }}
+                      />
+                    </motion.div>
+                  ))}
+                  {post.youtubeLinks && post.youtubeLinks.map((url, i) => {
+                    const videoId = getYoutubeId(url);
+                    if (!videoId) return null;
+                    return (
+                      <div key={`vid-${i}`} className="col-span-1 md:col-span-2">
+                        <YouTubePlayer videoId={videoId} index={i} />
+                      </div>
+                    );
+                  })}
+                </div>
+              </section>
             )}
           </div>
-        )}
 
-        {post.youtubeLinks && post.youtubeLinks.length > 0 && (
-          <div className="grid grid-cols-1 gap-8">
-            {post.youtubeLinks.map((url, i) => {
-              const videoId = getYoutubeId(url);
-              if (!videoId) return null;
-              return <YouTubePlayer key={i} videoId={videoId} index={i} />;
-            })}
-          </div>
-        )}
+          {/* Sidebar / Extra Info */}
+          <aside className="lg:col-span-4 space-y-8">
+            <div className="glass p-6 rounded-3xl space-y-6 sticky top-24">
+              <div className="space-y-4">
+                <h4 className="text-sm font-bold uppercase tracking-widest text-pink-500">About this Insight</h4>
+                <p className="text-sm text-slate-300 leading-relaxed italic">
+                  "The stars align to bring you wisdom. This transmission was received through the celestial frequencies of the cosmos."
+                </p>
+              </div>
 
-        <div className="markdown-body">
-          <ReactMarkdown>{post.content}</ReactMarkdown>
+              <div className="pt-6 border-t border-white/10 space-y-4">
+                <h4 className="text-sm font-bold uppercase tracking-widest text-pink-500">Quick Actions</h4>
+                <button 
+                  onClick={() => document.getElementById('comment-form')?.scrollIntoView({ behavior: 'smooth' })}
+                  className="w-full py-3 bg-white/5 hover:bg-white/10 border border-white/10 rounded-xl transition-all flex items-center justify-center gap-2 group"
+                >
+                  <MessageSquare size={16} className="group-hover:text-pink-400" />
+                  Join the Discussion
+                </button>
+                <button 
+                  onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
+                  className="w-full py-3 bg-white/5 hover:bg-white/10 border border-white/10 rounded-xl transition-all flex items-center justify-center gap-2"
+                >
+                  <ArrowLeft size={16} className="rotate-90" />
+                  Back to Top
+                </button>
+              </div>
+            </div>
+          </aside>
         </div>
       </motion.article>
 
@@ -207,7 +257,7 @@ export function BlogPost() {
           </h2>
         </div>
 
-        <form onSubmit={handleCommentSubmit} className="glass p-8 rounded-3xl space-y-6">
+        <form id="comment-form" onSubmit={handleCommentSubmit} className="glass p-8 rounded-3xl space-y-6">
           <h3 className="text-xl font-serif font-bold">Leave a comment</h3>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div className="space-y-2">

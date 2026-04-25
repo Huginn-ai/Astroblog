@@ -20,8 +20,15 @@ import {
   ArrowDown,
   LogOut,
   Lock,
-  GripVertical
+  GripVertical,
+  Upload
 } from 'lucide-react';
+import * as mammoth from 'mammoth';
+import TurndownService from 'turndown';
+import * as pdfjsLib from 'pdfjs-dist';
+
+// Set up PDF.js worker
+pdfjsLib.GlobalWorkerOptions.workerSrc = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.min.js`;
 
 interface AdminProps {
   settings: Settings;
@@ -40,10 +47,12 @@ export function Admin({ settings, onSettingsUpdate }: AdminProps) {
   const [editingPost, setEditingPost] = useState<Post | null>(null);
   const [selectedImages, setSelectedImages] = useState<FileList | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isImporting, setIsImporting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [compressionStatus, setCompressionStatus] = useState<string | null>(null);
   const [uploadProgress, setUploadProgress] = useState<number | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const documentInputRef = useRef<HTMLInputElement>(null);
 
   const [postToDelete, setPostToDelete] = useState<number | null>(null);
 
@@ -315,6 +324,55 @@ export function Admin({ settings, onSettingsUpdate }: AdminProps) {
     addLog(`Added YouTube reference: ${videoId}`);
   };
 
+  const handleImportDocument = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setIsImporting(true);
+    addLog(`Importing document: ${file.name}`);
+    
+    try {
+      const arrayBuffer = await file.arrayBuffer();
+      let importedMarkdown = '';
+
+      if (file.name.toLowerCase().endsWith('.docx')) {
+        const result = await mammoth.convertToHtml({ arrayBuffer });
+        const turndownService = new TurndownService();
+        importedMarkdown = turndownService.turndown(result.value);
+        addLog('DOCX conversion successful');
+      } else if (file.name.toLowerCase().endsWith('.pdf')) {
+        const loadingTask = pdfjsLib.getDocument({ data: arrayBuffer });
+        const pdf = await loadingTask.promise;
+        let fullText = '';
+        
+        for (let i = 1; i <= pdf.numPages; i++) {
+          const page = await pdf.getPage(i);
+          const textContent = await page.getTextContent();
+          const pageText = textContent.items.map((item: any) => item.str).join(' ');
+          fullText += pageText + '\n\n';
+          addLog(`Processed PDF page ${i}/${pdf.numPages}`);
+        }
+        
+        importedMarkdown = fullText;
+        addLog('PDF text extraction complete');
+      } else {
+        throw new Error('Unsupported celestial document format. Please use PDF or DOCX.');
+      }
+
+      setNewPost(prev => ({
+        ...prev,
+        content: prev.content ? prev.content + '\n\n' + importedMarkdown : importedMarkdown
+      }));
+      toast.success('Document imported into your celestial insight');
+    } catch (err: any) {
+      console.error('Import error:', err);
+      toast.error(err.message || 'Failed to decode cosmic document');
+    } finally {
+      setIsImporting(false);
+      if (documentInputRef.current) documentInputRef.current.value = '';
+    }
+  };
+
   const removeYoutubeLink = (index: number) => {
     setYoutubeLinks(youtubeLinks.filter((_, i) => i !== index));
   };
@@ -513,13 +571,38 @@ export function Admin({ settings, onSettingsUpdate }: AdminProps) {
               </div>
 
               <div className="space-y-2">
-                <label className="text-xs text-slate-400 uppercase tracking-widest">Content (Markdown)</label>
+                <div className="flex items-center justify-between">
+                  <label className="text-xs text-slate-400 uppercase tracking-widest">Content (Markdown)</label>
+                  <div className="flex items-center gap-2">
+                    <button 
+                      type="button"
+                      onClick={() => documentInputRef.current?.click()}
+                      disabled={isImporting}
+                      className="text-[10px] font-bold uppercase tracking-wider text-pink-500 hover:text-pink-400 flex items-center gap-1 transition-colors disabled:opacity-50"
+                    >
+                      {isImporting ? (
+                        <div className="w-3 h-3 border border-pink-500/30 border-t-pink-500 rounded-full animate-spin" />
+                      ) : (
+                        <Upload size={12} />
+                      )}
+                      Import PDF/DOCX
+                    </button>
+                    <input 
+                      type="file"
+                      ref={documentInputRef}
+                      onChange={handleImportDocument}
+                      accept=".pdf,.docx"
+                      className="hidden"
+                    />
+                  </div>
+                </div>
                 <textarea 
                   required
                   value={newPost.content}
                   onChange={e => setNewPost({ ...newPost, content: e.target.value })}
-                  rows={8}
-                  className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 focus:outline-none focus:border-pink-500 font-mono text-sm"
+                  rows={12}
+                  className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 focus:outline-none focus:border-pink-500 font-mono text-sm leading-relaxed"
+                  placeholder="The cosmic energies flow through these words..."
                 />
               </div>
 
