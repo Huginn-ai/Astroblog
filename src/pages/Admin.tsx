@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { api } from '../services/api';
 import { Post, Comment, Settings } from '../types';
-import { motion } from 'motion/react';
+import { motion, Reorder } from 'motion/react';
 import imageCompression from 'browser-image-compression';
 import { 
   Plus, 
@@ -18,7 +18,8 @@ import {
   ArrowUp,
   ArrowDown,
   LogOut,
-  Lock
+  Lock,
+  GripVertical
 } from 'lucide-react';
 
 interface AdminProps {
@@ -101,8 +102,11 @@ export function Admin({ settings, onSettingsUpdate }: AdminProps) {
     } catch (err: any) {
       console.error('Failed to refresh data:', err);
       const msg = err.message || '';
-      if (msg === 'Unauthorized' || msg.includes('401')) {
+      // Check for unauthorized in a more robust way
+      if (msg.toLowerCase().includes('unauthorized') || msg.includes('401')) {
+        addLog('Session invalidated or unauthorized. This might be due to third-party cookies being blocked in your browser.');
         setIsAdmin(false);
+        setError('Session expired or unauthorized. If you are using Brave, Safari, or Chrome in an iframe, ensure third-party celestial cookies are enabled or try opening the app in a new tab.'); 
       } else {
         setError(msg || 'Failed to refresh data');
       }
@@ -555,69 +559,92 @@ export function Admin({ settings, onSettingsUpdate }: AdminProps) {
                 )}
               </div>
 
-              <div className="space-y-2">
+              <div className="space-y-4">
                 <label className="text-xs text-slate-400 uppercase tracking-widest">YouTube References</label>
+                
+                {/* Live Preview Area */}
+                {youtubeUrlInput && getYoutubeId(youtubeUrlInput) && (
+                  <motion.div 
+                    initial={{ opacity: 0, scale: 0.95 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    className="relative aspect-video w-full max-w-sm rounded-2xl overflow-hidden border-2 border-pink-500/50 shadow-2xl shadow-pink-500/10 mb-4"
+                  >
+                    <img 
+                      src={`https://img.youtube.com/vi/${getYoutubeId(youtubeUrlInput)}/maxresdefault.jpg`} 
+                      className="w-full h-full object-cover"
+                      onError={(e) => {
+                        (e.target as HTMLImageElement).src = `https://img.youtube.com/vi/${getYoutubeId(youtubeUrlInput)}/mqdefault.jpg`;
+                      }}
+                    />
+                    <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent flex items-end p-4">
+                      <span className="text-xs font-bold text-white uppercase tracking-wider bg-pink-600 px-2 py-0.5 rounded">Preview</span>
+                    </div>
+                  </motion.div>
+                )}
+
                 <div className="flex gap-2">
-                  <input 
-                    type="text" 
-                    value={youtubeUrlInput}
-                    onChange={e => setYoutubeUrlInput(e.target.value)}
-                    placeholder="Paste YouTube Link"
-                    className="flex-1 bg-white/5 border border-white/10 rounded-xl px-4 py-3 focus:outline-none focus:border-pink-500"
-                  />
+                  <div className="relative flex-1">
+                    <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+                      <LinkIcon size={18} className="text-slate-500" />
+                    </div>
+                    <input 
+                      type="text" 
+                      value={youtubeUrlInput}
+                      onChange={e => setYoutubeUrlInput(e.target.value)}
+                      placeholder="Paste YouTube Link (e.g., https://youtu.be/...)"
+                      className="w-full bg-white/5 border border-white/10 rounded-xl pl-12 pr-4 py-3 focus:outline-none focus:border-pink-500 transition-colors"
+                    />
+                  </div>
                   <button 
                     type="button"
                     onClick={handleAddYoutubeLink}
-                    className="px-6 bg-pink-500/20 text-pink-400 border border-pink-500/30 rounded-xl hover:bg-pink-500/30 transition-colors font-bold"
+                    className="px-6 bg-pink-500/20 text-pink-400 border border-pink-500/30 rounded-xl hover:bg-pink-500/30 transition-colors font-bold flex items-center gap-2"
                   >
+                    <Plus size={18} />
                     Add
                   </button>
                 </div>
 
                 {youtubeLinks.length > 0 && (
-                  <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4 mt-4">
-                    {youtubeLinks.map((url, i) => {
-                      const videoId = getYoutubeId(url);
-                      return (
-                        <div key={i} className="relative group aspect-video rounded-xl overflow-hidden border border-white/10 bg-white/5">
-                          <img 
-                            src={`https://img.youtube.com/vi/${videoId}/mqdefault.jpg`} 
-                            className="w-full h-full object-cover" 
-                          />
-                          <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
-                            <button
-                              type="button"
-                              onClick={() => moveYoutubeLink(i, 'up')}
-                              disabled={i === 0}
-                              className="p-1.5 bg-white/10 rounded-lg hover:bg-white/20 disabled:opacity-30"
-                              title="Move Up"
-                            >
-                              <ArrowUp size={16} />
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => moveYoutubeLink(i, 'down')}
-                              disabled={i === youtubeLinks.length - 1}
-                              className="p-1.5 bg-white/10 rounded-lg hover:bg-white/20 disabled:opacity-30"
-                              title="Move Down"
-                            >
-                              <ArrowDown size={16} />
-                            </button>
+                  <div className="space-y-3 mt-6">
+                    <p className="text-[10px] text-slate-500 uppercase tracking-[0.2em] font-bold">Manage & Order Transmissions</p>
+                    <Reorder.Group axis="y" values={youtubeLinks} onReorder={setYoutubeLinks} className="space-y-3">
+                      {youtubeLinks.map((url, i) => {
+                        const videoId = getYoutubeId(url);
+                        return (
+                          <Reorder.Item 
+                            key={url} 
+                            value={url}
+                            className="group relative flex items-center gap-4 bg-white/5 border border-white/10 p-3 rounded-2xl hover:border-white/20 transition-all cursor-grab active:cursor-grabbing"
+                          >
+                            <div className="flex items-center text-slate-600 group-hover:text-slate-400 transition-colors">
+                              <GripVertical size={20} />
+                            </div>
+                            
+                            <div className="w-32 aspect-video rounded-lg overflow-hidden border border-white/10 flex-shrink-0">
+                              <img 
+                                src={`https://img.youtube.com/vi/${videoId}/mqdefault.jpg`} 
+                                className="w-full h-full object-cover" 
+                              />
+                            </div>
+                            
+                            <div className="flex-1 min-w-0">
+                              <p className="text-sm text-slate-300 font-medium truncate">{url}</p>
+                              <p className="text-[10px] text-slate-500 font-mono">ID: {videoId}</p>
+                            </div>
+
                             <button
                               type="button"
                               onClick={() => removeYoutubeLink(i)}
-                              className="p-1.5 bg-rose-500/20 text-rose-400 rounded-lg hover:bg-rose-500/30"
+                              className="p-2 bg-rose-500/10 text-rose-400 rounded-xl hover:bg-rose-500/20 transition-colors"
                               title="Remove Reference"
                             >
-                              <Trash2 size={16} />
+                              <Trash2 size={18} />
                             </button>
-                          </div>
-                          <div className="absolute top-2 right-2 px-2 py-1 bg-red-600 rounded text-[10px] text-white font-bold uppercase tracking-wider">
-                            YouTube
-                          </div>
-                        </div>
-                      );
-                    })}
+                          </Reorder.Item>
+                        );
+                      })}
+                    </Reorder.Group>
                   </div>
                 )}
               </div>

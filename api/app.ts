@@ -126,7 +126,9 @@ export async function createApp() {
     name: 'astro_session',
     keys: [process.env.SESSION_SECRET || 'astro-celestial-key-v1'],
     maxAge: 24 * 60 * 60 * 1000,
-    secure: true,
+    // Try to be more flexible with secure, but keep sameSite 'none' for iframes
+    // sameSite: 'none' REQUIRES secure: true in some browsers
+    secure: true, 
     sameSite: 'none',
     httpOnly: true,
     proxy: true,
@@ -262,7 +264,15 @@ export async function createApp() {
   });
 
   app.get('/api/admin/check-auth', (req: any, res) => {
-    res.json({ isAdmin: !!(req.session && req.session.isAdmin) });
+    const isAdmin = !!(req.session && req.session.isAdmin);
+    if (!isAdmin) {
+      console.log('check-auth failed:', {
+        hasSession: !!req.session,
+        isAdmin: req.session?.isAdmin,
+        cookie: req.headers.cookie ? 'present' : 'missing'
+      });
+    }
+    res.json({ isAdmin });
   });
 
   // API Routes
